@@ -1,6 +1,7 @@
 import numpy as np
 from collections import Counter
 
+
 def find_best_split(feature_vector, target_vector):
     """
     Под критерием Джини здесь подразумевается следующая функция:
@@ -26,42 +27,42 @@ def find_best_split(feature_vector, target_vector):
     """
     feature_vector = np.array(feature_vector)
     target_vector = np.array(target_vector)
-    
+
     sorted_indices = np.argsort(feature_vector)
     feat_sorted = feature_vector[sorted_indices]
     target_sorted = target_vector[sorted_indices]
-    
+
     valid_split_mask = feat_sorted[:-1] != feat_sorted[1:]
-    
+
     if not np.any(valid_split_mask):
         return np.array([]), np.array([]), None, None
 
     thresholds = (feat_sorted[:-1] + feat_sorted[1:]) / 2.0
 
     N = len(target_vector)
-    
+
     target_cumsum = np.cumsum(target_sorted)
-    
+
     r_l_sizes = np.arange(1, N)
     r_r_sizes = N - r_l_sizes
-    
+
     s_l = target_cumsum[:-1]
     s_r = target_cumsum[-1] - s_l
-    
+
     p1_l = s_l / r_l_sizes
     p0_l = 1 - p1_l
-    
+
     p1_r = s_r / r_r_sizes
     p0_r = 1 - p1_r
-    
+
     h_l = 1 - (p1_l ** 2 + p0_l ** 2)
     h_r = 1 - (p1_r ** 2 + p0_r ** 2)
-    
+
     Q = - (r_l_sizes / N) * h_l - (r_r_sizes / N) * h_r
-    
+
     thresholds = thresholds[valid_split_mask]
     ginis = Q[valid_split_mask]
-    
+
     best_idx = np.argmax(ginis)
     threshold_best = thresholds[best_idx]
     gini_best = ginis[best_idx]
@@ -82,8 +83,8 @@ class DecisionTree:
 
     def _fit_node(self, sub_X, sub_y, node, depth=0):
         if (self._max_depth is not None and depth >= self._max_depth) or \
-           (self._min_samples_split is not None and len(sub_y) < self._min_samples_split) or \
-           np.all(sub_y == sub_y[0]):
+                (self._min_samples_split is not None and len(sub_y) < self._min_samples_split) or \
+                np.all(sub_y == sub_y[0]):
             node["type"] = "terminal"
             node["class"] = Counter(sub_y).most_common(1)[0][0]
             return
@@ -91,7 +92,7 @@ class DecisionTree:
         feature_best, threshold_best, gini_best, split = None, None, None, None
         for feature in range(sub_X.shape[1]):
             feature_type = self._feature_types[feature]
-            
+
             if feature_type == "real":
                 feature_vector = sub_X[:, feature].astype(float)
             elif feature_type == "categorical":
@@ -102,7 +103,7 @@ class DecisionTree:
                 for key, current_count in counts.items():
                     current_click = clicks.get(key, 0)
                     ratio[key] = current_click / current_count if current_count > 0 else 0
-                
+
                 sorted_categories = [x[0] for x in sorted(ratio.items(), key=lambda x: x[1])]
                 categories_map = {cat: i for i, cat in enumerate(sorted_categories)}
                 feature_vector = np.array([categories_map[x] for x in feature_vector])
@@ -113,14 +114,14 @@ class DecisionTree:
                 continue
 
             _, _, threshold, gini = find_best_split(feature_vector, sub_y)
-            
+
             if gini is None:
                 continue
-                
+
             if gini_best is None or gini > gini_best:
                 feature_best = feature
                 gini_best = gini
-                
+
                 if feature_type == "real":
                     threshold_best = threshold
                     split = sub_X[:, feature].astype(float) < threshold
@@ -128,9 +129,9 @@ class DecisionTree:
                     threshold_best = [cat for cat in categories_map if categories_map[cat] < threshold]
                     split = np.array([x in threshold_best for x in sub_X[:, feature]])
 
-        if feature_best is None or (self._min_samples_leaf is not None and 
-                                   (np.sum(split) < self._min_samples_leaf or 
-                                    np.sum(~split) < self._min_samples_leaf)):
+        if feature_best is None or (self._min_samples_leaf is not None and
+                                    (np.sum(split) < self._min_samples_leaf or
+                                     np.sum(~split) < self._min_samples_leaf)):
             node["type"] = "terminal"
             node["class"] = Counter(sub_y).most_common(1)[0][0]
             return
@@ -143,7 +144,7 @@ class DecisionTree:
             node["categories_split"] = threshold_best
         else:
             raise ValueError
-        
+
         node["left_child"], node["right_child"] = {}, {}
         self._fit_node(sub_X[split], sub_y[split], node["left_child"], depth + 1)
         self._fit_node(sub_X[~split], sub_y[~split], node["right_child"], depth + 1)
@@ -151,10 +152,10 @@ class DecisionTree:
     def _predict_node(self, x, node):
         if node["type"] == "terminal":
             return node["class"]
-        
+
         feature_idx = node["feature_split"]
         feature_type = self._feature_types[feature_idx]
-        
+
         if feature_type == "real":
             if x[feature_idx] < node["threshold"]:
                 return self._predict_node(x, node["left_child"])
